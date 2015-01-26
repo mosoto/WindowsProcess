@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 namespace WindowsProcess
 {
-    public class Class1
+    public class WindowsProcessFactory
     {
+        
     }
 }
