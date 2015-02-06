@@ -39,9 +39,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ExtensionMethods.cs" />
+    <Compile Include="NativeMethods.cs" />
+    <Compile Include="ProcessInformation.cs" />
+    <Compile Include="ProcessWaitHandle.cs" />
+    <Compile Include="SafeAllocation.cs" />
+    <Compile Include="SafeProcessHandle.cs" />
     <Compile Include="WindowsProcess.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="WindowsProcessExitedEventArgs.cs" />
     <Compile Include="WindowsProcessFactory.cs" />
+    <Compile Include="WindowsProcessIO.cs" />
     <Compile Include="WindowsProcessStartInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
