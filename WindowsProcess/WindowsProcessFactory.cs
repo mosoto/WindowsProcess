@@ -75,6 +75,7 @@ namespace WindowsProcess
 
             var pInfo = new ProcessInformation(processInfo);
             var pIO = new WindowsProcessIO(stdInputStream, stdOutputStream, stdErrorStream);
+
             return new WindowsProcess(pInfo, pIO);
         }
 

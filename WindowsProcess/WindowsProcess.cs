@@ -30,6 +30,8 @@ namespace WindowsProcess
         /// </summary>
         /// <param name="exitCode">The exit code used by the terminated process</param>
         void Kill(int exitCode = -1);
+
+        void Start();
     }
 
     public partial class WindowsProcess : IWindowsProcess
@@ -107,6 +109,14 @@ namespace WindowsProcess
             }
 
             return exited;
+        }
+
+        /// <summary>
+        /// If suspended, resumes the process.
+        /// </summary>
+        public void Start()
+        {
+            throw new NotImplementedException();
         }
 
         /// <summary>
