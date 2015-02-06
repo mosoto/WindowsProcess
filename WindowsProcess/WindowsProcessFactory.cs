@@ -23,7 +23,7 @@ namespace WindowsProcess
             string commandLine = BuildCommandLine(startInfo.FileName, startInfo.Arguments);
             ProcesCreationFlags creationFlags = ProcesCreationFlags.NONE;
             IntPtr environmentPtr = IntPtr.Zero;
-            string workingDirectory = null;
+            string workingDirectory = startInfo.WorkingDirectory;
 
             AnonymousPipeServerStream stdInputStream = startInfo.RedirectStandardInput ? CreatePipe(inputPipe: true) : null;
             AnonymousPipeServerStream stdOutputStream = startInfo.RedirectStandardOutput ? CreatePipe(inputPipe: false) : null;

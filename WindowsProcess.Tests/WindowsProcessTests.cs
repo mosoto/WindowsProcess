@@ -117,6 +117,43 @@ namespace WindowsProcess.Tests
                     Assert.Throws<InvalidOperationException>(() => process.IO.Error.ReadLine());
                 }
             }
+
+            public class WhenWorkingDirectorySet : Create
+            {
+                [Fact]
+                public void StartsProcessInDirectory()
+                {
+                    StartInfo.FileName = CmdExeFullPath;
+                    StartInfo.Arguments = "/C cd";
+                    StartInfo.AutoStart = true;
+                    StartInfo.RedirectStandardOutput = true;
+                    StartInfo.WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+
+                    var process = WindowsProcess.Create(StartInfo);
+                    process.WaitForExit();
+
+                    string actual = process.IO.Output.ReadLine();
+
+                    Assert.Equal(StartInfo.WorkingDirectory, actual);
+                }
+
+                [Fact]
+                public void NullWorkingDirectorySetsCurrentDirectory()
+                {
+                    StartInfo.FileName = CmdExeFullPath;
+                    StartInfo.Arguments = "/C cd";
+                    StartInfo.AutoStart = true;
+                    StartInfo.RedirectStandardOutput = true;
+                    StartInfo.WorkingDirectory = null;
+
+                    var process = WindowsProcess.Create(StartInfo);
+                    process.WaitForExit();
+
+                    string actual = process.IO.Output.ReadLine();
+
+                    Assert.Equal(Environment.CurrentDirectory, actual);
+                }
+            }
         }
 
         public class WaitForExit : WindowsProcessTests
@@ -262,6 +299,21 @@ namespace WindowsProcess.Tests
 
                 Assert.False(proc.HasExited);
                 proc.Kill();
+            }
+
+            [Fact]
+            public void DisposesProcessIO()
+            {
+                StartInfo.RedirectStandardInput = true;
+                StartInfo.RedirectStandardOutput = true;
+                StartInfo.RedirectStandardError = true;
+
+                var process = StartImmediatelyExitingProcess();
+                process.Dispose();
+
+                Assert.Throws<InvalidOperationException>(() => process.IO.Input.WriteLine("foo"));
+                Assert.Throws<InvalidOperationException>(() => process.IO.Output.ReadLine());
+                Assert.Throws<InvalidOperationException>(() => process.IO.Error.ReadLine());
             }
         }
 

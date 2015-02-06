@@ -11,7 +11,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace WindowsProcess
 {
-    public interface IWindowsProcessIO
+    public interface IWindowsProcessIO : IDisposable
     {
         StreamWriter Input { get; }
         StreamReader Output { get; }
@@ -22,7 +22,7 @@ namespace WindowsProcess
     public class WindowsProcessIO : IWindowsProcessIO
     {
         private StreamWriter _inputStream;
-        private StreamReader _outpuStream;
+        private StreamReader _outputStream;
         private StreamReader _errorStream;
 
         public WindowsProcessIO(
@@ -32,19 +32,16 @@ namespace WindowsProcess
         {
             if (stdInputStream != null)
             {
-                //var inputStream = new AnonymousPipeClientStream(PipeDirection.In, stdInputStream);
                 _inputStream = new StreamWriter(stdInputStream);
             }
 
             if (stdOutputStream != null)
             {
-                //var outputStream = new AnonymousPipeClientStream(PipeDirection.Out, stdOutputStream);
-                _outpuStream = new StreamReader(stdOutputStream);
+                _outputStream = new StreamReader(stdOutputStream);
             }
 
             if (stdErrorStream != null)
             {
-                //var errorStream = new AnonymousPipeClientStream(PipeDirection.Out, stdErrorStream);
                 _errorStream = new StreamReader(stdErrorStream);
             }
         }
@@ -56,7 +53,7 @@ namespace WindowsProcess
 
         public StreamReader Output
         {
-            get { return ThrowIfNull(_outpuStream); }
+            get { return ThrowIfNull(_outputStream); }
         }
 
         public StreamReader Error
@@ -70,6 +67,23 @@ namespace WindowsProcess
                 throw new InvalidOperationException("The stream was not redirected.");
 
             return stream;
+        }
+        public void Dispose()
+        {
+            if (_inputStream != null)
+            {
+                _inputStream.Close();
+            }
+
+            if (_outputStream != null)
+            {
+                _outputStream.Close();
+            }
+
+            if (_errorStream != null)
+            {
+                _errorStream.Close();
+            }
         }
     }
 }

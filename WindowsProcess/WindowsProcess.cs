@@ -126,10 +126,7 @@ namespace WindowsProcess
             StopWatchingForExit();
 
             _processInfo.Dispose();
-
-            // We don't dispose the process IO because someone else
-            // might be using them.
-            _processIO = null;
+            _processIO.Dispose();
             
             _disposed = true;
         }
