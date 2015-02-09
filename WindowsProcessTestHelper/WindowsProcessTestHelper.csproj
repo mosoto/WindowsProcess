@@ -4,15 +4,16 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{474B421B-F092-46E9-8DA4-D8E52582F5F1}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <ProjectGuid>{D7435CCF-5099-4835-B62E-E2829AECDD5C}</ProjectGuid>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>WindowsProcess</RootNamespace>
-    <AssemblyName>WindowsProcess</AssemblyName>
+    <RootNamespace>WindowsProcessTestHelper</RootNamespace>
+    <AssemblyName>WindowsProcessTestHelper</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -22,6 +23,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -39,20 +41,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="StreamingWindowsProcessIO.cs" />
-    <Compile Include="ExtensionMethods.cs" />
-    <Compile Include="NativeMethods.cs" />
-    <Compile Include="NullHandleWindowsProcessIO.cs" />
-    <Compile Include="ProcessInformation.cs" />
-    <Compile Include="ProcessWaitHandle.cs" />
-    <Compile Include="SafeAllocation.cs" />
-    <Compile Include="SafeProcessHandle.cs" />
-    <Compile Include="WindowsProcess.cs" />
+    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="WindowsProcessExitedEventArgs.cs" />
-    <Compile Include="WindowsProcessFactory.cs" />
-    <Compile Include="IWindowsProcessIO.cs" />
-    <Compile Include="WindowsProcessStartInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

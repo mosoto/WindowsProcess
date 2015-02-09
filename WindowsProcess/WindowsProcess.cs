@@ -16,10 +16,10 @@ namespace WindowsProcess
 
     public interface IWindowsProcess : IDisposable
     {
+        WindowsProcessStartInfo StartInfo { get; }
         int Id { get; }
         int? ExitCode { get; }
         bool HasExited { get; }
-        IWindowsProcessIO IO { get; }
 
         event EventHandler<WindowsProcessExitedEventArgs> Exited;
 
@@ -39,12 +39,13 @@ namespace WindowsProcess
         private readonly ProcessInformation _processInfo;
         private readonly object _syncObject = new object();
 
-        private IWindowsProcessIO _processIO;
         private bool _disposed = false;
         private int? _exitCode;
         private WaitHandle _processExitWaitHandle;
         private RegisteredWaitHandle _processExitRegisteredWaitHandle;
 
+
+        public WindowsProcessStartInfo StartInfo { get; private set; }
 
         public int Id
         {
@@ -73,21 +74,12 @@ namespace WindowsProcess
             }
         }
 
-        public IWindowsProcessIO IO
-        {
-            get
-            {
-                ThrowIfDisposed();
-                return _processIO;
-            }
-        }
-
         public event EventHandler<WindowsProcessExitedEventArgs> Exited;
 
-        private WindowsProcess(ProcessInformation processInfo, IWindowsProcessIO processIO)
+        private WindowsProcess(ProcessInformation processInfo, WindowsProcessStartInfo startInfo)
         {
             _processInfo = processInfo;
-            _processIO = processIO;
+            this.StartInfo = startInfo;
 
             StartWatchingForExit();
         }
@@ -136,7 +128,6 @@ namespace WindowsProcess
             StopWatchingForExit();
 
             _processInfo.Dispose();
-            _processIO.Dispose();
             
             _disposed = true;
         }

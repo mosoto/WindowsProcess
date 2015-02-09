@@ -53,7 +53,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="WindowsProcessIOTests.cs" />
+    <Compile Include="StreamingWindowsProcessIOTests.cs" />
     <Compile Include="WindowsProcessTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -61,6 +61,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\WindowsProcessTestHelper\WindowsProcessTestHelper.csproj">
+      <Project>{d7435ccf-5099-4835-b62e-e2829aecdd5c}</Project>
+      <Name>WindowsProcessTestHelper</Name>
+    </ProjectReference>
     <ProjectReference Include="..\WindowsProcess\WindowsProcess.csproj">
       <Project>{474b421b-f092-46e9-8da4-d8e52582f5f1}</Project>
       <Name>WindowsProcess</Name>

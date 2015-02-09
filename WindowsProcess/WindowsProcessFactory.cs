@@ -15,6 +15,11 @@ namespace WindowsProcess
     {
         public static IWindowsProcess Create(WindowsProcessStartInfo startInfo)
         {
+            if (startInfo == null)
+            {
+                throw new ArgumentNullException("startInfo");
+            }
+
             if (String.IsNullOrWhiteSpace(startInfo.FileName))
             {
                 throw new ArgumentException("startInfo.FileName");
@@ -25,29 +30,20 @@ namespace WindowsProcess
             IntPtr environmentPtr = IntPtr.Zero;
             string workingDirectory = startInfo.WorkingDirectory;
 
-            AnonymousPipeServerStream stdInputStream = startInfo.RedirectStandardInput ? CreatePipe(inputPipe: true) : null;
-            AnonymousPipeServerStream stdOutputStream = startInfo.RedirectStandardOutput ? CreatePipe(inputPipe: false) : null;
-            AnonymousPipeServerStream stdErrorStream = startInfo.RedirectStandardError ? CreatePipe(inputPipe: false) : null;
-
             var startupInfo = new STARTUPINFO();
-            bool anyStreamRedirected = startInfo.RedirectStandardInput || startInfo.RedirectStandardOutput || startInfo.RedirectStandardError;
+
+            IWindowsProcessIO ioHandles = startInfo.IO ?? new NullHandleWindowsProcessIO();
+            startupInfo.hStdInput = ioHandles.StdInputHandle ?? GetStandardHandle(StandardHandle.STD_INPUT_HANDLE);
+            startupInfo.hStdOutput = ioHandles.StdOutputHandle ?? GetStandardHandle(StandardHandle.STD_OUTPUT_HANDLE);
+            startupInfo.hStdError = ioHandles.StdErrorHandle ?? GetStandardHandle(StandardHandle.STD_ERROR_HANDLE);
+
+            bool anyStreamRedirected = ioHandles.StdInputHandle != null || 
+                                       ioHandles.StdOutputHandle != null ||
+                                       ioHandles.StdErrorHandle != null;
+
             if (anyStreamRedirected)
-            {
-                startupInfo.hStdInput = stdInputStream == null
-                    ? GetStandardHandle(StandardHandle.STD_INPUT_HANDLE)
-                    : stdInputStream.ClientSafePipeHandle;
-
-                startupInfo.hStdOutput = stdOutputStream == null
-                    ? GetStandardHandle(StandardHandle.STD_OUTPUT_HANDLE)
-                    : stdOutputStream.ClientSafePipeHandle;
-
-                startupInfo.hStdError = stdErrorStream == null
-                    ? GetStandardHandle(StandardHandle.STD_ERROR_HANDLE)
-                    : stdErrorStream.ClientSafePipeHandle;
-
                 // Set a flag to indicate that we are passing the child standard handles.
                 startupInfo.dwFlags |= StartInfoFlags.STARTF_USESTDHANDLES;
-            }
 
             PROCESS_INFORMATION processInfo;
             bool retValue = NativeMethods.CreateProcess(
@@ -67,31 +63,13 @@ namespace WindowsProcess
                 throw new Win32Exception();
             }
 
-            // If we created streams to pass to the child process, close our copies of the child handle.
-            // See https://msdn.microsoft.com/en-us/library/system.io.pipes.anonymouspipeserverstream.disposelocalcopyofclienthandle(v=vs.110).aspx
-            ClosePipeLocalClientHandle(stdInputStream);
-            ClosePipeLocalClientHandle(stdOutputStream);
-            ClosePipeLocalClientHandle(stdErrorStream);
-
+            ioHandles.Start();
             var pInfo = new ProcessInformation(processInfo);
-            var pIO = new WindowsProcessIO(stdInputStream, stdOutputStream, stdErrorStream);
+            var process = new WindowsProcess(pInfo, startInfo);
 
-            return new WindowsProcess(pInfo, pIO);
-        }
+            // TODO If AutoStart: process.Start();
 
-        private static AnonymousPipeServerStream CreatePipe(bool inputPipe)
-        {
-            PipeDirection direction = inputPipe ? PipeDirection.Out : PipeDirection.In;
-            
-            return new AnonymousPipeServerStream(direction, HandleInheritability.Inheritable);
-        }
-
-        private static void ClosePipeLocalClientHandle(AnonymousPipeServerStream pipeStream)
-        {
-            if (pipeStream != null)
-            {
-                pipeStream.DisposeLocalCopyOfClientHandle();
-            }
+            return process;
         }
 
         private static SafePipeHandle GetStandardHandle(StandardHandle handleType)

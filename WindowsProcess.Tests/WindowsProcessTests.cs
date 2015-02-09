@@ -12,6 +12,7 @@ namespace WindowsProcess.Tests
 {
     public class WindowsProcessTests
     {
+        private readonly string WindowsProcessTestHelperPath = typeof(WindowsProcessTestHelper.Program).Assembly.Location;
         private readonly string CmdExeFullPath = Environment.SystemDirectory + @"\cmd.exe";
         WindowsProcessStartInfo StartInfo { get; set; }
 
@@ -48,73 +49,58 @@ namespace WindowsProcess.Tests
                 Assert.NotNull(process);
             }
 
-            public class WithRedirectedPipes : Create
+            public class WithRedirection : Create
             {
                 [Fact]
                 public void OnlyOutput()
                 {
-                    StartInfo.FileName = CmdExeFullPath;
-                    StartInfo.Arguments = "/C echo foo";
-                    StartInfo.RedirectStandardOutput = true;
-                    StartInfo.AutoStart = true;
+                    var io = new StreamingWindowsProcessIO(false, true, false);
+                    StartInfo.IO = io;
 
-                    var process = WindowsProcess.Create(StartInfo);
+                    var process = StartProcessWithOutput();
                     process.WaitForExit();
 
-                    string output = process.IO.Output.ReadToEnd();
+                    string output = io.OutputStream.ReadToEnd();
 
-                    Assert.Contains("foo", output);
+                    Assert.Contains("OUTPUT", output);
                 }
 
                 [Fact]
-                public void OnlyError()
+                public void OutputAndError()
                 {
-                    StartInfo.FileName = CmdExeFullPath;
-                    StartInfo.Arguments = "/C echo foo >&2";
-                    StartInfo.RedirectStandardError = true;
-                    StartInfo.AutoStart = true;
+                    var io = new StreamingWindowsProcessIO(false, true, true);
+                    StartInfo.IO = io;
 
-                    var process = WindowsProcess.Create(StartInfo);
+                    var process = StartProcessWithOutput();
                     process.WaitForExit();
 
-                    string error = process.IO.Error.ReadLine();
+                    string output = io.OutputStream.ReadToEnd();
+                    string error = io.ErrorStream.ReadToEnd();
 
-                    Assert.Contains("foo", error);
+                    Assert.Contains("OUTPUT", output);
+                    Assert.Contains("ERROR", error);
                 }
 
                 [Fact]
                 public void AllPipes()
                 {
-                    StartInfo.FileName = CmdExeFullPath;
-                    StartInfo.Arguments = "/C echo foo && echo bar >&2";
-                    StartInfo.RedirectStandardInput = true;
-                    StartInfo.RedirectStandardOutput = true;
-                    StartInfo.RedirectStandardError = true;
+                    var io = new StreamingWindowsProcessIO(true, true, true);
+
+                    StartInfo.FileName = WindowsProcessTestHelperPath;
+                    StartInfo.IO = io;
+                    StartInfo.Arguments = "OUTPUT ERROR";
                     StartInfo.AutoStart = true;
 
                     var process = WindowsProcess.Create(StartInfo);
+                    io.InputStream.WriteLine("INPUT_LINE");
+                    io.InputStream.Close();
                     process.WaitForExit();
 
-                    string output = process.IO.Output.ReadToEnd();
-                    string error = process.IO.Error.ReadToEnd();
+                    string output = io.OutputStream.ReadToEnd();
+                    string error = io.ErrorStream.ReadToEnd();
 
-                    Assert.Contains("foo", output);
-                    Assert.Contains("bar", error);
-                }
-
-                [Fact]
-                public void WhenReadUnredirectedPipe_Throws()
-                {
-                    StartInfo.FileName = CmdExeFullPath;
-                    StartInfo.Arguments = "/C echo foo && echo bar >&2";
-                    StartInfo.AutoStart = true;
-
-                    var process = WindowsProcess.Create(StartInfo);
-                    process.WaitForExit();
-
-                    Assert.Throws<InvalidOperationException>(() => process.IO.Input.WriteLine("foo"));
-                    Assert.Throws<InvalidOperationException>(() => process.IO.Output.ReadLine());
-                    Assert.Throws<InvalidOperationException>(() => process.IO.Error.ReadLine());
+                    Assert.Contains("INPUT_LINE", output);
+                    Assert.Contains("INPUT_LINE", error);
                 }
             }
 
@@ -123,16 +109,18 @@ namespace WindowsProcess.Tests
                 [Fact]
                 public void StartsProcessInDirectory()
                 {
+                    var io = new StreamingWindowsProcessIO(false, true, false);
+
                     StartInfo.FileName = CmdExeFullPath;
                     StartInfo.Arguments = "/C cd";
                     StartInfo.AutoStart = true;
-                    StartInfo.RedirectStandardOutput = true;
+                    StartInfo.IO = io;
                     StartInfo.WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
 
                     var process = WindowsProcess.Create(StartInfo);
                     process.WaitForExit();
 
-                    string actual = process.IO.Output.ReadLine();
+                    string actual = io.OutputStream.ReadLine();
 
                     Assert.Equal(StartInfo.WorkingDirectory, actual);
                 }
@@ -140,16 +128,18 @@ namespace WindowsProcess.Tests
                 [Fact]
                 public void NullWorkingDirectorySetsCurrentDirectory()
                 {
+                    var io = new StreamingWindowsProcessIO(false, true, false);
+
                     StartInfo.FileName = CmdExeFullPath;
                     StartInfo.Arguments = "/C cd";
                     StartInfo.AutoStart = true;
-                    StartInfo.RedirectStandardOutput = true;
+                    StartInfo.IO = io;
                     StartInfo.WorkingDirectory = null;
 
                     var process = WindowsProcess.Create(StartInfo);
                     process.WaitForExit();
 
-                    string actual = process.IO.Output.ReadLine();
+                    string actual = io.OutputStream.ReadLine();
 
                     Assert.Equal(Environment.CurrentDirectory, actual);
                 }
@@ -300,21 +290,6 @@ namespace WindowsProcess.Tests
                 Assert.False(proc.HasExited);
                 proc.Kill();
             }
-
-            [Fact]
-            public void DisposesProcessIO()
-            {
-                StartInfo.RedirectStandardInput = true;
-                StartInfo.RedirectStandardOutput = true;
-                StartInfo.RedirectStandardError = true;
-
-                var process = StartImmediatelyExitingProcess();
-                process.Dispose();
-
-                Assert.Throws<InvalidOperationException>(() => process.IO.Input.WriteLine("foo"));
-                Assert.Throws<InvalidOperationException>(() => process.IO.Output.ReadLine());
-                Assert.Throws<InvalidOperationException>(() => process.IO.Error.ReadLine());
-            }
         }
 
         protected IWindowsProcess StartImmediatelyExitingProcess()
@@ -335,11 +310,19 @@ namespace WindowsProcess.Tests
             return WindowsProcess.Create(StartInfo);
         }
 
-        [Fact]
         protected IWindowsProcess StartNonExitingProcess()
         {
             StartInfo.FileName = CmdExeFullPath;
             StartInfo.Arguments = "/C ping 127.0.0.1 -t";
+            StartInfo.AutoStart = true;
+
+            return WindowsProcess.Create(StartInfo);
+        }
+
+        protected IWindowsProcess StartProcessWithOutput()
+        {
+            StartInfo.FileName = CmdExeFullPath;
+            StartInfo.Arguments = "/C echo OUTPUT && echo ERROR >&2 ";
             StartInfo.AutoStart = true;
 
             return WindowsProcess.Create(StartInfo);

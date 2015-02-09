@@ -80,9 +80,9 @@ namespace WindowsProcess
         public Int16 wShowWindow;
         public Int16 cbReserved2;
         public LPBYTE lpReserved2;
-        public SafePipeHandle hStdInput = new SafePipeHandle(IntPtr.Zero, false);
-        public SafePipeHandle hStdOutput = new SafePipeHandle(IntPtr.Zero, false);
-        public SafePipeHandle hStdError = new SafePipeHandle(IntPtr.Zero, false);
+        public SafeHandle hStdInput = new SafePipeHandle(IntPtr.Zero, false);
+        public SafeHandle hStdOutput = new SafePipeHandle(IntPtr.Zero, false);
+        public SafeHandle hStdError = new SafePipeHandle(IntPtr.Zero, false);
 
         public STARTUPINFO()
         {
