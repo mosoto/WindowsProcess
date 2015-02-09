@@ -25,11 +25,19 @@ namespace WindowsProcess
                 throw new ArgumentException("startInfo.FileName");
             }
 
+            // COMMAND LINE
             string commandLine = BuildCommandLine(startInfo.FileName, startInfo.Arguments);
-            ProcesCreationFlags creationFlags = ProcesCreationFlags.NONE;
+            
+            // ENVIRONMENT
             IntPtr environmentPtr = IntPtr.Zero;
+
+            // WORKING DIR
             string workingDirectory = startInfo.WorkingDirectory;
 
+            // CREATION FLAGS
+            ProcesCreationFlags creationFlags = ProcesCreationFlags.CREATE_SUSPENDED;
+
+            // STARTUP INFO
             var startupInfo = new STARTUPINFO();
 
             IWindowsProcessIO ioHandles = startInfo.IO ?? new NullHandleWindowsProcessIO();
@@ -45,11 +53,12 @@ namespace WindowsProcess
                 // Set a flag to indicate that we are passing the child standard handles.
                 startupInfo.dwFlags |= StartInfoFlags.STARTF_USESTDHANDLES;
 
+            // START PROCESS
             PROCESS_INFORMATION processInfo;
             bool retValue = NativeMethods.CreateProcess(
                 null, // we don't need this since all the info is in commandLine 
                 commandLine, // pointer to the command line string
-                null, // pointer to process security attributes, we don't need to inheriat the handle 
+                null, // pointer to process security attributes 
                 null, // pointer to thread security attributes 
                 true, // handle inheritance flag
                 creationFlags, // creation flags 
@@ -67,7 +76,8 @@ namespace WindowsProcess
             var pInfo = new ProcessInformation(processInfo);
             var process = new WindowsProcess(pInfo, startInfo);
 
-            // TODO If AutoStart: process.Start();
+            if (startInfo.AutoStart)
+                process.Start();
 
             return process;
         }

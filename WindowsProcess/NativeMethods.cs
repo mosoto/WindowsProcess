@@ -59,7 +59,10 @@ namespace WindowsProcess
         public static extern bool GetExitCodeProcess(SafeProcessHandle processHandle, out int exitCode);
 
         [DllImport(Kernel32, CharSet = CharSet.Ansi, SetLastError = true)]
-        public static extern IntPtr GetStdHandle(StandardHandle whichHandle); 
+        public static extern IntPtr GetStdHandle(StandardHandle whichHandle);
+
+        [DllImport(Kernel32, CharSet = CharSet.Ansi, SetLastError = true)]
+        public static extern uint ResumeThread(SafeHandle hThread);
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]

@@ -18,7 +18,10 @@ namespace WindowsProcess.Tests
 
         public WindowsProcessTests()
         {
-            StartInfo = new WindowsProcessStartInfo();
+            StartInfo = new WindowsProcessStartInfo()
+            {
+                AutoStart = true,
+            };
         }
 
         public class Create : WindowsProcessTests
@@ -142,6 +145,19 @@ namespace WindowsProcess.Tests
                     string actual = io.OutputStream.ReadLine();
 
                     Assert.Equal(Environment.CurrentDirectory, actual);
+                }
+            }
+
+            public class WhenAutoStartIsFalse : Create
+            {
+                [Fact]
+                public void StartsProcessSuspended()
+                {
+                    StartInfo.AutoStart = false;
+
+                    var process = StartImmediatelyExitingProcess();
+                    process.WaitForExit(200);
+                    Assert.False(process.HasExited);
                 }
             }
         }
@@ -292,11 +308,37 @@ namespace WindowsProcess.Tests
             }
         }
 
+        public class Start : WindowsProcessTests
+        {
+            [Fact]
+            public void ResumesASuspendedProcess()
+            {
+                StartInfo.AutoStart = false;
+                
+                var process = StartImmediatelyExitingProcess();
+
+                Assert.False(process.HasExited);
+                process.Start();
+                process.WaitForExit(300);
+                Assert.True(process.HasExited);
+            }
+
+            [Fact]
+            public void WhenProcessRunning_DoesNothing()
+            {
+                var process = StartShortLivedProcess();
+
+                Assert.False(process.HasExited);
+                process.Start();
+                process.Start();
+                process.Start();
+            }
+        }
+
         protected IWindowsProcess StartImmediatelyExitingProcess()
         {
             StartInfo.FileName = CmdExeFullPath;
             StartInfo.Arguments = "/C";
-            StartInfo.AutoStart = true;
 
             return WindowsProcess.Create(StartInfo);
         }
@@ -305,7 +347,6 @@ namespace WindowsProcess.Tests
         {
             StartInfo.FileName = CmdExeFullPath;
             StartInfo.Arguments = "/C ping 127.0.0.1 -n 4";
-            StartInfo.AutoStart = true;
 
             return WindowsProcess.Create(StartInfo);
         }
@@ -314,7 +355,6 @@ namespace WindowsProcess.Tests
         {
             StartInfo.FileName = CmdExeFullPath;
             StartInfo.Arguments = "/C ping 127.0.0.1 -t";
-            StartInfo.AutoStart = true;
 
             return WindowsProcess.Create(StartInfo);
         }
@@ -323,7 +363,6 @@ namespace WindowsProcess.Tests
         {
             StartInfo.FileName = CmdExeFullPath;
             StartInfo.Arguments = "/C echo OUTPUT && echo ERROR >&2 ";
-            StartInfo.AutoStart = true;
 
             return WindowsProcess.Create(StartInfo);
         }

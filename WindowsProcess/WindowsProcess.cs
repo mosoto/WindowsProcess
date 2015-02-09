@@ -108,7 +108,24 @@ namespace WindowsProcess
         /// </summary>
         public void Start()
         {
-            throw new NotImplementedException();
+            bool processStillSuspended = true;
+            while(processStillSuspended)
+            {
+                uint retValue = NativeMethods.ResumeThread(_processInfo.ThreadHandle);
+                // For an explanation of the following see: https://msdn.microsoft.com/en-us/library/windows/desktop/ms685086(v=vs.85).aspx
+                // The ResumeThread function checks the suspend count of the subject thread. If the suspend count is zero, the
+                // thread is not currently suspended. Otherwise, the subject thread's suspend count is decremented. If the
+                // resulting value is zero, then the execution of the subject thread is resumed.
+                //
+                // If the return value is zero, the specified thread was not suspended. If the return value is 1, the specified
+                // thread was suspended but was restarted. If the return value is greater than 1, the specified thread is still suspended.
+                processStillSuspended = retValue > 1;
+            }
+        }
+
+        private void NativeResumeProcess()
+        {
+            
         }
 
         /// <summary>
