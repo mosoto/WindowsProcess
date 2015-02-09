@@ -39,6 +39,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AsyncWindowsProcessIO.cs" />
+    <Compile Include="LineReceivedEventArgs.cs" />
     <Compile Include="StreamingWindowsProcessIO.cs" />
     <Compile Include="ExtensionMethods.cs" />
     <Compile Include="NativeMethods.cs" />

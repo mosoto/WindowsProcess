@@ -53,6 +53,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AsyncWindowsProcessIOTests.cs" />
     <Compile Include="StreamingWindowsProcessIOTests.cs" />
     <Compile Include="WindowsProcessTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

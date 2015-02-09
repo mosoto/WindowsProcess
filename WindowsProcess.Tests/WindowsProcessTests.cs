@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -63,7 +64,7 @@ namespace WindowsProcess.Tests
                     var process = StartProcessWithOutput();
                     process.WaitForExit();
 
-                    string output = io.OutputStream.ReadToEnd();
+                    string output = io.Output.ReadToEnd();
 
                     Assert.Contains("OUTPUT", output);
                 }
@@ -77,8 +78,8 @@ namespace WindowsProcess.Tests
                     var process = StartProcessWithOutput();
                     process.WaitForExit();
 
-                    string output = io.OutputStream.ReadToEnd();
-                    string error = io.ErrorStream.ReadToEnd();
+                    string output = io.Output.ReadToEnd();
+                    string error = io.Error.ReadToEnd();
 
                     Assert.Contains("OUTPUT", output);
                     Assert.Contains("ERROR", error);
@@ -95,12 +96,12 @@ namespace WindowsProcess.Tests
                     StartInfo.AutoStart = true;
 
                     var process = WindowsProcess.Create(StartInfo);
-                    io.InputStream.WriteLine("INPUT_LINE");
-                    io.InputStream.Close();
+                    io.Input.WriteLine("INPUT_LINE");
+                    io.Input.Close();
                     process.WaitForExit();
 
-                    string output = io.OutputStream.ReadToEnd();
-                    string error = io.ErrorStream.ReadToEnd();
+                    string output = io.Output.ReadToEnd();
+                    string error = io.Error.ReadToEnd();
 
                     Assert.Contains("INPUT_LINE", output);
                     Assert.Contains("INPUT_LINE", error);
@@ -123,7 +124,7 @@ namespace WindowsProcess.Tests
                     var process = WindowsProcess.Create(StartInfo);
                     process.WaitForExit();
 
-                    string actual = io.OutputStream.ReadLine();
+                    string actual = io.Output.ReadLine();
 
                     Assert.Equal(StartInfo.WorkingDirectory, actual);
                 }
@@ -142,7 +143,7 @@ namespace WindowsProcess.Tests
                     var process = WindowsProcess.Create(StartInfo);
                     process.WaitForExit();
 
-                    string actual = io.OutputStream.ReadLine();
+                    string actual = io.Output.ReadLine();
 
                     Assert.Equal(Environment.CurrentDirectory, actual);
                 }
@@ -158,6 +159,35 @@ namespace WindowsProcess.Tests
                     var process = StartImmediatelyExitingProcess();
                     process.WaitForExit(200);
                     Assert.False(process.HasExited);
+                }
+            }
+
+            public class WhenEnvironmentSpecified : Create
+            {
+                [Fact]
+                public void CreatesProcessWithEnvironment()
+                {
+                    var io = new StreamingWindowsProcessIO(false, true, false);
+
+                    StartInfo.FileName = CmdExeFullPath;
+                    StartInfo.Arguments = "/C set";
+                    StartInfo.AutoStart = true;
+                    StartInfo.IO = io;
+                    StartInfo.Environment = new Dictionary<string, string>();
+
+                    foreach (DictionaryEntry de in Environment.GetEnvironmentVariables())
+                    {
+                        StartInfo.Environment[(string)de.Key] = (string)de.Value;
+                    }
+
+                    StartInfo.Environment["TEST_ENVIRONMENT_VALUE"] = "FOOBAR";
+
+                    var process = WindowsProcess.Create(StartInfo);
+                    process.WaitForExit();
+
+                    string actual = io.Output.ReadLine();
+
+                    Assert.Equal(Environment.CurrentDirectory, actual);
                 }
             }
         }

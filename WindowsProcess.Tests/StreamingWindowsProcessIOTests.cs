@@ -18,9 +18,9 @@ namespace WindowsProcess.Tests
         {
             var processIo = new StreamingWindowsProcessIO(false, false, false);
 
-            Assert.Throws<InvalidOperationException>(() => processIo.InputStream.WriteLine());
-            Assert.Throws<InvalidOperationException>(() => processIo.OutputStream.ReadLine());
-            Assert.Throws<InvalidOperationException>(() => processIo.ErrorStream.ReadLine());
+            Assert.Throws<InvalidOperationException>(() => processIo.Input.WriteLine());
+            Assert.Throws<InvalidOperationException>(() => processIo.Output.ReadLine());
+            Assert.Throws<InvalidOperationException>(() => processIo.Error.ReadLine());
         }
 
         [Fact]
@@ -29,9 +29,9 @@ namespace WindowsProcess.Tests
             var processIo = new StreamingWindowsProcessIO(true, false, false);
 
             AnonymousPipeClientStream client = new AnonymousPipeClientStream(PipeDirection.In, (SafePipeHandle)processIo.StdInputHandle);
-            processIo.InputStream.WriteLine("Input1");
-            processIo.InputStream.WriteLine("Input2");
-            processIo.InputStream.Flush();
+            processIo.Input.WriteLine("Input1");
+            processIo.Input.WriteLine("Input2");
+            processIo.Input.Flush();
             
             using (StreamReader reader = new StreamReader(client))
             {
@@ -53,8 +53,8 @@ namespace WindowsProcess.Tests
                 writer.Flush();
             }
 
-            Assert.Equal("Input1", processIo.OutputStream.ReadLine());
-            Assert.Equal("Input2", processIo.OutputStream.ReadLine());
+            Assert.Equal("Input1", processIo.Output.ReadLine());
+            Assert.Equal("Input2", processIo.Output.ReadLine());
         }
 
         [Fact]
@@ -70,8 +70,8 @@ namespace WindowsProcess.Tests
                 writer.Flush();
             }
 
-            Assert.Equal("Input1", processIo.ErrorStream.ReadLine());
-            Assert.Equal("Input2", processIo.ErrorStream.ReadLine());
+            Assert.Equal("Input1", processIo.Error.ReadLine());
+            Assert.Equal("Input2", processIo.Error.ReadLine());
         }
 
         [Fact]
@@ -80,9 +80,9 @@ namespace WindowsProcess.Tests
             var processIo = new StreamingWindowsProcessIO(true, true, true);
             processIo.Dispose();
 
-            Assert.Throws<ObjectDisposedException>(() => processIo.InputStream.WriteLine());
-            Assert.Throws<ObjectDisposedException>(() => processIo.OutputStream.ReadToEnd());
-            Assert.Throws<ObjectDisposedException>(() => processIo.ErrorStream.ReadToEnd());
+            Assert.Throws<ObjectDisposedException>(() => processIo.Input.WriteLine());
+            Assert.Throws<ObjectDisposedException>(() => processIo.Output.ReadToEnd());
+            Assert.Throws<ObjectDisposedException>(() => processIo.Error.ReadToEnd());
         }
 
         [Fact]

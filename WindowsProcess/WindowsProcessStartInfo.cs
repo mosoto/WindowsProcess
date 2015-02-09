@@ -11,13 +11,13 @@ namespace WindowsProcess
         public string FileName { get; set; }
         public string Arguments { get; set; }
         public string WorkingDirectory { get; set; }
-
         public IWindowsProcessIO IO { get; set; }
-
         public bool AutoStart { get; set; }
+        public IDictionary<string, string> Environment { get; set; }
         
-
+        
         //public bool LoadUserProfile { get; set; }
-        //public IDictionary<string,string> Environment { get; set; }
+        //public string UserName { get;set; }
+        //public SecureString Password { get;set; }
     }
 }

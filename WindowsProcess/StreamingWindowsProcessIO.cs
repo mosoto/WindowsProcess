@@ -6,7 +6,14 @@ using System.Runtime.InteropServices;
 namespace WindowsProcess
 {
     // ReSharper disable InconsistentNaming
-    public class StreamingWindowsProcessIO : IWindowsProcessIO, IDisposable
+    public interface IStreamingWindowsProcessIO : IWindowsProcessIO, IDisposable
+    {
+        StreamWriter Input { get; }
+        StreamReader Output { get; }
+        StreamReader Error { get; }
+    }
+
+    public class StreamingWindowsProcessIO : IStreamingWindowsProcessIO
     {
         private readonly StreamWriter _inputWriter;
         private readonly StreamReader _outputReader;
@@ -38,7 +45,7 @@ namespace WindowsProcess
             }
         }
 
-        public StreamWriter InputStream
+        public StreamWriter Input
         {
             get
             {
@@ -47,7 +54,7 @@ namespace WindowsProcess
             }
         }
 
-        public StreamReader OutputStream
+        public StreamReader Output
         {
             get
             {
@@ -56,7 +63,7 @@ namespace WindowsProcess
             }
         }
 
-        public StreamReader ErrorStream
+        public StreamReader Error
         {
             get
             {
