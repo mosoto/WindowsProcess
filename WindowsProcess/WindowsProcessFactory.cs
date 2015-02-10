@@ -25,59 +25,89 @@ namespace WindowsProcess
                 throw new ArgumentException("startInfo.FileName");
             }
 
-            // COMMAND LINE
-            string commandLine = BuildCommandLine(startInfo.FileName, startInfo.Arguments);
-            
-            // ENVIRONMENT
-            IntPtr environmentPtr = IntPtr.Zero;
+            WindowsProcess process = null;
+            GCHandle environmentHandle = new GCHandle();
 
-            // WORKING DIR
-            string workingDirectory = startInfo.WorkingDirectory;
-
-            // CREATION FLAGS
-            ProcesCreationFlags creationFlags = ProcesCreationFlags.CREATE_SUSPENDED;
-
-            // STARTUP INFO
-            var startupInfo = new STARTUPINFO();
-
-            IWindowsProcessIO ioHandles = startInfo.IO ?? new NullHandleWindowsProcessIO();
-            startupInfo.hStdInput = ioHandles.StdInputHandle ?? GetStandardHandle(StandardHandle.STD_INPUT_HANDLE);
-            startupInfo.hStdOutput = ioHandles.StdOutputHandle ?? GetStandardHandle(StandardHandle.STD_OUTPUT_HANDLE);
-            startupInfo.hStdError = ioHandles.StdErrorHandle ?? GetStandardHandle(StandardHandle.STD_ERROR_HANDLE);
-
-            bool anyStreamRedirected = ioHandles.StdInputHandle != null || 
-                                       ioHandles.StdOutputHandle != null ||
-                                       ioHandles.StdErrorHandle != null;
-
-            if (anyStreamRedirected)
-                // Set a flag to indicate that we are passing the child standard handles.
-                startupInfo.dwFlags |= StartInfoFlags.STARTF_USESTDHANDLES;
-
-            // START PROCESS
-            PROCESS_INFORMATION processInfo;
-            bool retValue = NativeMethods.CreateProcess(
-                null, // we don't need this since all the info is in commandLine 
-                commandLine, // pointer to the command line string
-                null, // pointer to process security attributes 
-                null, // pointer to thread security attributes 
-                true, // handle inheritance flag
-                creationFlags, // creation flags 
-                environmentPtr, // pointer to new environment block
-                workingDirectory, // pointer to current directory name
-                startupInfo, // pointer to STARTUPINFO
-                out processInfo // pointer to PROCESS_INFORMATION 
-                );
-            if (!retValue)
+            try
             {
-                throw new Win32Exception();
+                // COMMAND LINE
+                string commandLine = BuildCommandLine(startInfo.FileName, startInfo.Arguments);
+
+                // CREATION FLAGS
+                ProcesCreationFlags creationFlags = ProcesCreationFlags.CREATE_SUSPENDED;
+
+
+                // ENVIRONMENT
+                IntPtr environmentPtr = IntPtr.Zero;
+                if (startInfo.Environment != null)
+                {
+                    Encoding envEncoding = Environment.OSVersion.Platform == PlatformID.Win32NT
+                        ? Encoding.Unicode
+                        : Encoding.Default;
+
+                    byte[] environmentBytes = EnvBlockToBytes(startInfo.Environment, envEncoding);
+                    environmentHandle = GCHandle.Alloc(environmentBytes, GCHandleType.Pinned);
+                    environmentPtr = environmentHandle.AddrOfPinnedObject();
+
+                    if (envEncoding.Equals(Encoding.Unicode))
+                    {
+                        creationFlags |= ProcesCreationFlags.CREATE_UNICODE_ENVIRONMENT;
+                    }
+                }
+
+                // WORKING DIR
+                string workingDirectory = startInfo.WorkingDirectory;
+
+                // STARTUP INFO
+                var startupInfo = new STARTUPINFO();
+
+                IWindowsProcessIO ioHandles = startInfo.IO ?? new NullHandleWindowsProcessIO();
+                startupInfo.hStdInput = ioHandles.StdInputHandle ?? GetStandardHandle(StandardHandle.STD_INPUT_HANDLE);
+                startupInfo.hStdOutput = ioHandles.StdOutputHandle ??
+                                         GetStandardHandle(StandardHandle.STD_OUTPUT_HANDLE);
+                startupInfo.hStdError = ioHandles.StdErrorHandle ?? GetStandardHandle(StandardHandle.STD_ERROR_HANDLE);
+
+                bool anyStreamRedirected = ioHandles.StdInputHandle != null ||
+                                           ioHandles.StdOutputHandle != null ||
+                                           ioHandles.StdErrorHandle != null;
+
+                if (anyStreamRedirected)
+                    // Set a flag to indicate that we are passing the child standard handles.
+                    startupInfo.dwFlags |= StartInfoFlags.STARTF_USESTDHANDLES;
+
+                // START PROCESS
+                PROCESS_INFORMATION processInfo;
+                bool retValue = NativeMethods.CreateProcess(
+                    null, // we don't need this since all the info is in commandLine 
+                    commandLine, // pointer to the command line string
+                    null, // pointer to process security attributes 
+                    null, // pointer to thread security attributes 
+                    true, // handle inheritance flag
+                    creationFlags, // creation flags 
+                    environmentPtr, // pointer to new environment block
+                    workingDirectory, // pointer to current directory name
+                    startupInfo, // pointer to STARTUPINFO
+                    out processInfo // pointer to PROCESS_INFORMATION 
+                    );
+                if (!retValue)
+                {
+                    throw new Win32Exception();
+                }
+
+                ioHandles.Start();
+                var pInfo = new ProcessInformation(processInfo);
+                process = new WindowsProcess(pInfo, startInfo);
+
+                if (startInfo.AutoStart)
+                    process.Start();
             }
-
-            ioHandles.Start();
-            var pInfo = new ProcessInformation(processInfo);
-            var process = new WindowsProcess(pInfo, startInfo);
-
-            if (startInfo.AutoStart)
-                process.Start();
+            finally
+            {
+                if (environmentHandle.IsAllocated)
+                {
+                    environmentHandle.Free();
+                }
+            }
 
             return process;
         }
@@ -117,6 +147,31 @@ namespace WindowsProcess
             }
 
             return commandLine.ToString();
+        }
+
+        private static byte[] EnvBlockToBytes(IDictionary<string, string> envBlock, Encoding encoding)
+        {
+            var sortedPairs = envBlock.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase).ToArray();
+
+            StringBuilder buffer = new StringBuilder();
+            foreach (var keyValuePair in sortedPairs)
+            {
+                buffer.Append(keyValuePair.Key);
+                buffer.Append('=');
+                buffer.Append(keyValuePair.Value);
+                buffer.Append('\0');
+            }
+            // The end of the block is indicated by an extra null.
+            buffer.Append('\0');
+
+            var bytes = encoding.GetBytes(buffer.ToString());
+
+            if (bytes.Length > UInt16.MaxValue)
+            {
+                throw new InvalidOperationException(string.Format("The environment block must fit in {0} bytes", UInt16.MaxValue));
+            }
+
+            return bytes;
         }
     }
 }

@@ -173,21 +173,18 @@ namespace WindowsProcess.Tests
                     StartInfo.Arguments = "/C set";
                     StartInfo.AutoStart = true;
                     StartInfo.IO = io;
-                    StartInfo.Environment = new Dictionary<string, string>();
 
-                    foreach (DictionaryEntry de in Environment.GetEnvironmentVariables())
-                    {
-                        StartInfo.Environment[(string)de.Key] = (string)de.Value;
-                    }
-
+                    StartInfo.Environment = Environment.GetEnvironmentVariables().ToStringDictionary();
                     StartInfo.Environment["TEST_ENVIRONMENT_VALUE"] = "FOOBAR";
 
                     var process = WindowsProcess.Create(StartInfo);
-                    process.WaitForExit();
-
-                    string actual = io.Output.ReadLine();
-
-                    Assert.Equal(Environment.CurrentDirectory, actual);
+                    string output = io.Output.ReadToEnd();
+                    string [] outputLines = output.Split(
+                        new [] {Environment.NewLine},
+                        StringSplitOptions.RemoveEmptyEntries);
+                    
+                    Assert.True(output.Length >= StartInfo.Environment.Count);
+                    Assert.Contains("TEST_ENVIRONMENT_VALUE=FOOBAR", output);
                 }
             }
         }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -13,6 +14,8 @@ namespace WindowsProcess
         private readonly IStreamingWindowsProcessIO _streamIO;
         private readonly ManualResetEvent _allOutputReceived = new ManualResetEvent(false);
         private readonly ManualResetEvent _allErrorReceived = new ManualResetEvent(false);
+
+        private bool _started = false;
 
         public AsyncWindowsProcessIO(IStreamingWindowsProcessIO streamingIO)
         {
@@ -58,9 +61,13 @@ namespace WindowsProcess
 
         public void Start()
         {
-            _streamIO.Start();
-            StartListeningForOutputLine();
-            StartListeningForErrorLine();
+            if (!_started)
+            {
+                _streamIO.Start();
+                StartListeningForOutputLine();
+                StartListeningForErrorLine();
+                _started = true;
+            }
         }
 
         public void Dispose()
@@ -77,8 +84,15 @@ namespace WindowsProcess
         {
             if (line != null)
             {
-                StartListeningForOutputLine();
                 OnLineReceived(OutputDataReceived, line);
+                // By starting to listen for the next line only after publishing the current line
+                // we guarantee that subscribers are receiving the lines in order.
+                // It does, however, introduce additional latency in the publishing of lines.
+                StartListeningForOutputLine();
+            }
+            else
+            {
+                _allOutputReceived.Set();
             }
         }
 
@@ -89,8 +103,18 @@ namespace WindowsProcess
 
         private void OnErrorLineReceived(string line)
         {
-            StartListeningForErrorLine();
-            OnLineReceived(ErrorDataReceived, line);
+            if (line != null)
+            {
+                OnLineReceived(ErrorDataReceived, line);
+                // By starting to listen for the next line only after publishing the current line
+                // we guarantee that subscribers are receiving the lines in order.
+                // It does, however, introduce additional latency in the publishing of lines.
+                StartListeningForErrorLine();
+            }
+            else
+            {
+                _allErrorReceived.Set();
+            }
         }
 
         private void OnLineReceived(EventHandler<LineReceivedEventArgs> handler, string line)
@@ -98,7 +122,22 @@ namespace WindowsProcess
             if (handler != null)
             {
                 var args = new LineReceivedEventArgs(line);
-                handler(this, args);
+                var delegateList = handler.GetInvocationList();
+
+                foreach (Delegate del in delegateList)
+                {
+                    try
+                    {
+                        del.DynamicInvoke(this, args);
+                    }
+                    catch
+                    {
+                        // There is no good action to take here.
+                        // If we throw, it just bubbles up to the task reading lines.
+                        // The only way to inform the user of the instance is to save it and rethrow
+                        // whenever they call some method on the instance.
+                    }
+                }
             }
         }
 

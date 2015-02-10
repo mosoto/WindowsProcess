@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -48,6 +49,17 @@ namespace WindowsProcess
             }
 
             return targetHandle;
+        }
+
+        public static Dictionary<string, string> ToStringDictionary(this IDictionary dictionary)
+        {
+            Dictionary<string, string> typedDictionary = new Dictionary<string, string>();
+            foreach (DictionaryEntry de in dictionary)
+            {
+                typedDictionary[(string)de.Key] = (string)de.Value;
+            }
+
+            return typedDictionary;
         }
 
     }

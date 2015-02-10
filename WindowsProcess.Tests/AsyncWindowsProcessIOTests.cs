@@ -134,5 +134,116 @@ namespace WindowsProcess.Tests
 
             StreamingIO.Received(1).Dispose();
         }
+
+        [Fact]
+        public void WaitForAllOutput_ReturnsAfterChildStreamClosed()
+        {
+            var processIo = new AsyncWindowsProcessIO(StreamingIO);
+
+            List<string> outputReceived = new List<string>();
+            processIo.OutputDataReceived += (o, e) =>
+            {
+                lock (this)
+                {
+                    outputReceived.Add(e.Line);
+                }
+            };
+            processIo.Start();
+
+            using (StreamWriter writer = new StreamWriter(OutputPipe))
+            {
+                writer.AutoFlush = true;
+                writer.WriteLine("LINE_1");
+                writer.WriteLine("LINE_2");
+                writer.WriteLine("LINE_3");
+                writer.WriteLine("LINE_4");
+            }
+
+            Assert.True(processIo.WaitForAllOutput(5000));
+            Assert.Equal(4, outputReceived.Count);
+        }
+
+        [Fact]
+        public void WaitForAllError_ReturnsAfterChildStreamClosed()
+        {
+            var processIo = new AsyncWindowsProcessIO(StreamingIO);
+
+            List<string> errorReceived = new List<string>();
+            processIo.ErrorDataReceived += (o, e) =>
+            {
+                lock (this)
+                {
+                    errorReceived.Add(e.Line);
+                }
+            };
+            processIo.Start();
+
+            using (StreamWriter writer = new StreamWriter(ErrorPipe))
+            {
+                writer.AutoFlush = true;
+                writer.WriteLine("LINE_1");
+                writer.WriteLine("LINE_2");
+                writer.WriteLine("LINE_3");
+                writer.WriteLine("LINE_4");
+            }
+
+            Assert.True(processIo.WaitForAllError(5000));
+            Assert.Equal(4, errorReceived.Count);
+        }
+
+        [Fact]
+        public void WhileChildstreamOpen_WaitForAllOutput_DoesNotReturn()
+        {
+            var processIo = new AsyncWindowsProcessIO(StreamingIO);
+            processIo.Start();
+
+            using (StreamWriter writer = new StreamWriter(OutputPipe))
+            {
+                writer.AutoFlush = true;
+                writer.WriteLine("LINE_1");
+                writer.WriteLine("LINE_2");
+                writer.WriteLine("LINE_3");
+                writer.WriteLine("LINE_4");
+
+                Assert.False(processIo.WaitForAllOutput(300));
+            }
+        }
+
+        [Fact]
+        public void WhenSubscriberThrowsException_ItDoesntAffectOthers()
+        {
+            var processIo = new AsyncWindowsProcessIO(StreamingIO);
+
+            List<string> outputReceived = new List<string>();
+            processIo.OutputDataReceived += (o, e) => { throw new Exception(); };
+            processIo.OutputDataReceived += (o, e) =>
+            {
+                lock (this)
+                {
+                    outputReceived.Add(e.Line);
+                }
+            };
+            processIo.OutputDataReceived += (o, e) => { throw new Exception(); };
+            processIo.Start();
+
+            using (StreamWriter writer = new StreamWriter(OutputPipe))
+            {
+                writer.AutoFlush = true;
+                writer.WriteLine("LINE_1");
+                writer.WriteLine("LINE_2");
+            }
+
+            Assert.True(processIo.WaitForAllOutput(5000));
+            Assert.Equal(2, outputReceived.Count);
+        }
+
+        [Fact]
+        public void WhenAlreadyStarted_StartDoesNothing()
+        {
+            var processIo = new AsyncWindowsProcessIO(StreamingIO);
+            processIo.Start();
+            processIo.Start();
+        }
+
     }
 }
