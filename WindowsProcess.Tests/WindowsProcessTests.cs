@@ -178,13 +178,17 @@ namespace WindowsProcess.Tests
                     StartInfo.Environment["TEST_ENVIRONMENT_VALUE"] = "FOOBAR";
 
                     var process = WindowsProcess.Create(StartInfo);
-                    string output = io.Output.ReadToEnd();
-                    string [] outputLines = output.Split(
-                        new [] {Environment.NewLine},
-                        StringSplitOptions.RemoveEmptyEntries);
-                    
-                    Assert.True(output.Length >= StartInfo.Environment.Count);
-                    Assert.Contains("TEST_ENVIRONMENT_VALUE=FOOBAR", output);
+                    string[] outputLines = io.Output.ReadToEnd()
+                        .Split(new[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries);
+
+                    string[] expectedArr = StartInfo.Environment.OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value).ToArray();
+                    var expectedSet = new HashSet<string>(expectedArr);
+                    var outputSet = new HashSet<string>(outputLines);
+
+                    // The output set might have more environment variables than the ones we specified.
+                    // For example, cmd.exe will add the PROMPT variable.
+                    Assert.True(outputSet.IsSupersetOf(expectedSet));
+                    Assert.Contains("TEST_ENVIRONMENT_VALUE=FOOBAR", outputLines);
                 }
             }
         }
