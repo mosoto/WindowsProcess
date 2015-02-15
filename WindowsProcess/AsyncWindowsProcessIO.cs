@@ -13,7 +13,6 @@ namespace WindowsProcess
         private readonly IAsyncLineReader _outputReader;
         private readonly IAsyncLineReader _errorReader;
 
-
         public AsyncWindowsProcessIO(IStreamingWindowsProcessIO streamingIO)
         {
             _streamIO = streamingIO;
