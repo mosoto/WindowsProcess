@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
+// ReSharper disable InconsistentNaming
 
-namespace WindowsProcess
+namespace WindowsProcess.Utilities
 {
     using DWORD  = UInt32;
     using LPBYTE = IntPtr;
@@ -16,6 +13,9 @@ namespace WindowsProcess
     public static class NativeMethods
     {
         public const string Kernel32 = "kernel32.dll";
+        public const string Advapi32 = "advapi32.dll";
+
+        public static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
 
         [DllImport(Kernel32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -35,13 +35,31 @@ namespace WindowsProcess
            STARTUPINFO lpStartupInfo,
            out PROCESS_INFORMATION lpProcessInformation);
 
+        [DllImport(Advapi32, SetLastError = true, CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool CreateProcessWithLogonW(
+            String userName,
+            String domain,
+            IntPtr password,
+            LogonFlags logonFlags,
+            [MarshalAs(UnmanagedType.LPTStr)] 
+            String applicationName,
+            String commandLine,
+            ProcesCreationFlags creationFlags,
+            LPVOID environment,
+            [MarshalAs(UnmanagedType.LPTStr)] 
+            String currentDirectory,
+            STARTUPINFO startupInfo,
+            out PROCESS_INFORMATION processInformation);
+
+
         [DllImport(Kernel32, CharSet = CharSet.Ansi, SetLastError = true, BestFitMapping = false)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool DuplicateHandle(
             IntPtr hSourceProcessHandle,
             IntPtr hSourceHandle,
             IntPtr hTargetProcess,
-            out System.IntPtr targetHandle,
+            out IntPtr targetHandle,
             DWORD dwDesiredAccess,
             bool bInheritHandle,
             DuplicateHandleOptions dwOptions
@@ -54,7 +72,7 @@ namespace WindowsProcess
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool TerminateProcess(SafeProcessHandle processHandle, int exitCode);
 
-        [DllImport(Kernel32, CharSet = System.Runtime.InteropServices.CharSet.Auto, SetLastError = true)]
+        [DllImport(Kernel32, CharSet = CharSet.Auto, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool GetExitCodeProcess(SafeProcessHandle processHandle, out int exitCode);
 
@@ -63,6 +81,18 @@ namespace WindowsProcess
 
         [DllImport(Kernel32, CharSet = CharSet.Ansi, SetLastError = true)]
         public static extern uint ResumeThread(SafeHandle hThread);
+
+        [DllImport(Advapi32, CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern bool LogonUser(
+            String lpszUserName,
+            String lpszDomain,
+            String lpszPassword,
+            LogonType dwLogonType,
+            LogonProvider dwLogonProvider,
+            out IntPtr phToken);
+
+        [DllImport(Advapi32, CharSet = CharSet.Auto, SetLastError = true)]
+        public static extern bool RevertToSelf();
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -196,5 +226,34 @@ namespace WindowsProcess
         STD_INPUT_HANDLE = -10,
         STD_OUTPUT_HANDLE = -11,
         STD_ERROR_HANDLE = -12,
+    }
+
+    [Flags]
+    public enum LogonFlags : uint
+    {
+        NONE = 0,
+        LOGON_WITH_PROFILE = 0x00000001,
+        LOGON_NETCREDENTIALS_ONLY = 0x00000002
+    }
+
+    [Flags]
+    public enum LogonType : uint
+    {
+        LOGON32_LOGON_INTERACTIVE = 2,
+        LOGON32_LOGON_NETWORK = 3,
+        LOGON32_LOGON_BATCH = 4,
+        LOGON32_LOGON_SERVICE = 5,
+        LOGON32_LOGON_UNLOCK = 7,
+        LOGON32_LOGON_NETWORK_CLEARTEXT = 8,
+        LOGON32_LOGON_NEW_CREDENTIALS = 9
+    }
+
+    [Flags]
+    public enum LogonProvider : uint
+    {
+        LOGON32_PROVIDER_DEFAULT = 0,
+        LOGON32_PROVIDER_WINNT35,
+        LOGON32_PROVIDER_WINNT40,
+        LOGON32_PROVIDER_WINNT50
     }
 }

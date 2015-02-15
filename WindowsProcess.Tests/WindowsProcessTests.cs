@@ -1,12 +1,8 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Text;
+using System.Diagnostics;
 using System.Threading;
-using System.Threading.Tasks;
+using WindowsProcess.Utilities;
 using Xunit;
 
 namespace WindowsProcess.Tests
@@ -22,6 +18,7 @@ namespace WindowsProcess.Tests
             StartInfo = new WindowsProcessStartInfo()
             {
                 AutoStart = true,
+                CreateNoWindow = true
             };
         }
 
@@ -159,6 +156,9 @@ namespace WindowsProcess.Tests
                     var process = StartImmediatelyExitingProcess();
                     process.WaitForExit(200);
                     Assert.False(process.HasExited);
+                    process.Start();
+                    process.WaitForExit(200);
+                    Assert.True(process.HasExited);
                 }
             }
 
@@ -175,20 +175,88 @@ namespace WindowsProcess.Tests
                     StartInfo.IO = io;
 
                     StartInfo.Environment = Environment.GetEnvironmentVariables().ToStringDictionary();
-                    StartInfo.Environment["TEST_ENVIRONMENT_VALUE"] = "FOOBAR";
+                    StartInfo.Environment["TEST_ENVIRONMENT_VALUE1"] = "FOO";
+                    StartInfo.Environment["TEST_ENVIRONMENT_VALUE2"] = "BAR";
 
                     var process = WindowsProcess.Create(StartInfo);
-                    string[] outputLines = io.Output.ReadToEnd()
-                        .Split(new[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries);
+                    string[] outputLines = io.Output.ReadToEnd().Split(new [] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
 
-                    string[] expectedArr = StartInfo.Environment.OrderBy(kv => kv.Key).Select(kv => kv.Key + "=" + kv.Value).ToArray();
-                    var expectedSet = new HashSet<string>(expectedArr);
-                    var outputSet = new HashSet<string>(outputLines);
+                    Assert.Contains("TEST_ENVIRONMENT_VALUE1=FOO", outputLines);
+                    Assert.Contains("TEST_ENVIRONMENT_VALUE2=BAR", outputLines);
+                }
+            }
 
-                    // The output set might have more environment variables than the ones we specified.
-                    // For example, cmd.exe will add the PROMPT variable.
-                    Assert.True(outputSet.IsSupersetOf(expectedSet));
-                    Assert.Contains("TEST_ENVIRONMENT_VALUE=FOOBAR", outputLines);
+            public class WhenCredentialsProvided : Create
+            {
+                [FactAdminRequired]
+                public void CreatesProcessAsOtherUser()
+                {
+                    var io = new StreamingWindowsProcessIO(false, true, false);
+
+                    using (var tempUser = UserFactory.CreateTempUser())
+                    {
+                        StartInfo.FileName = "whoami.exe";
+                        StartInfo.AutoStart = true;
+                        StartInfo.IO = io;
+                        StartInfo.Credential = tempUser.Credential;
+
+                        var process = WindowsProcess.Create(StartInfo);
+                        process.WaitForExit();
+                        var output = io.Output.ReadToEnd();
+
+                        var username = output.Trim().Split(new[] {'\\'})[1];
+
+                        Assert.Equal(tempUser.Credential.UserName, username);
+                    }
+                }
+
+                [FactAdminRequired]
+                public void CreatesProcessWithSpecifiedEnvironment()
+                {
+                    var io = new StreamingWindowsProcessIO(false, true, false);
+
+                    using (var tempUser = UserFactory.CreateTempUser())
+                    {
+                        StartInfo.FileName = CmdExeFullPath;
+                        StartInfo.Arguments = "/C set";
+                        StartInfo.AutoStart = true;
+                        StartInfo.IO = io;
+                        StartInfo.LoadUserProfile = true;
+                        StartInfo.WorkingDirectory = Environment.SystemDirectory;
+                        StartInfo.Credential = tempUser.Credential;
+                        StartInfo.Environment = EnvironmentBlock.CreateSystemDefault().ToDictionary();
+                        StartInfo.Environment["FOO"] = "BAR";
+
+                        var process = WindowsProcess.Create(StartInfo);
+                        var output = io.Output.ReadToEnd();
+
+                        Assert.Contains("FOO=BAR", output);
+                    }
+                }
+
+                public class WithLoadUserProfile : WhenCredentialsProvided
+                {
+                    [FactAdminRequired]
+                    public void ProcessHasUsersProfile()
+                    {
+                        var io = new StreamingWindowsProcessIO(false, true, false);
+
+                        using (var tempUser = UserFactory.CreateTempUser())
+                        {
+                            StartInfo.FileName = CmdExeFullPath;
+                            StartInfo.Arguments = "/C set";
+                            StartInfo.AutoStart = true;
+                            StartInfo.IO = io;
+                            StartInfo.LoadUserProfile = true;
+                            StartInfo.WorkingDirectory = Environment.SystemDirectory;
+                            StartInfo.Credential = tempUser.Credential;
+
+                            var process = WindowsProcess.Create(StartInfo);
+                            var output = io.Output.ReadToEnd();
+
+                            Assert.Contains("USERNAME" + "=" + tempUser.Credential.UserName, output);
+                        }
+                    }
                 }
             }
         }
@@ -378,14 +446,6 @@ namespace WindowsProcess.Tests
         {
             StartInfo.FileName = CmdExeFullPath;
             StartInfo.Arguments = "/C ping 127.0.0.1 -n 4";
-
-            return WindowsProcess.Create(StartInfo);
-        }
-
-        protected IWindowsProcess StartNonExitingProcess()
-        {
-            StartInfo.FileName = CmdExeFullPath;
-            StartInfo.Arguments = "/C ping 127.0.0.1 -t";
 
             return WindowsProcess.Create(StartInfo);
         }

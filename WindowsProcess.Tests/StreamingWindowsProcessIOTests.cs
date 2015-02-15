@@ -14,13 +14,13 @@ namespace WindowsProcess.Tests
     public class StreamingWindowsProcessIOTests
     {
         [Fact]
-        public void WhenReadingUnRedirectedStream_Throws()
+        public void ReadingUnRedirectedStreams_ReturnsNull()
         {
             var processIo = new StreamingWindowsProcessIO(false, false, false);
 
-            Assert.Throws<InvalidOperationException>(() => processIo.Input.WriteLine());
-            Assert.Throws<InvalidOperationException>(() => processIo.Output.ReadLine());
-            Assert.Throws<InvalidOperationException>(() => processIo.Error.ReadLine());
+            Assert.Null(processIo.Input);
+            Assert.Null(processIo.Output);
+            Assert.Null(processIo.Error);
         }
 
         [Fact]

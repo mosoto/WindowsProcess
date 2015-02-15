@@ -40,15 +40,17 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsyncWindowsProcessIO.cs" />
+    <Compile Include="EnvironmentBlock.cs" />
     <Compile Include="LineReceivedEventArgs.cs" />
+    <Compile Include="Utilities\AsyncLineReader.cs" />
+    <Compile Include="Utilities\SafeUserTokenHandle.cs" />
     <Compile Include="StreamingWindowsProcessIO.cs" />
-    <Compile Include="ExtensionMethods.cs" />
-    <Compile Include="NativeMethods.cs" />
+    <Compile Include="Utilities\ExtensionMethods.cs" />
+    <Compile Include="Utilities\NativeMethods.cs" />
     <Compile Include="NullHandleWindowsProcessIO.cs" />
-    <Compile Include="ProcessInformation.cs" />
-    <Compile Include="ProcessWaitHandle.cs" />
-    <Compile Include="SafeAllocation.cs" />
-    <Compile Include="SafeProcessHandle.cs" />
+    <Compile Include="Utilities\ProcessInformation.cs" />
+    <Compile Include="Utilities\ProcessWaitHandle.cs" />
+    <Compile Include="Utilities\SafeProcessHandle.cs" />
     <Compile Include="WindowsProcess.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="WindowsProcessExitedEventArgs.cs" />
@@ -56,6 +58,7 @@
     <Compile Include="IWindowsProcessIO.cs" />
     <Compile Include="WindowsProcessStartInfo.cs" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

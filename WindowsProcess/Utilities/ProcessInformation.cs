@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using WindowsProcess.Utilities;
 
-namespace WindowsProcess
+namespace WindowsProcess.Utilities
 {
     internal class ProcessInformation : IDisposable
     {
@@ -30,16 +27,16 @@ namespace WindowsProcess
 
         public void Dispose()
         {
-            if (this.ProcessHandle != null)
+            if (ProcessHandle != null)
             {
-                this.ProcessHandle.Dispose();
-                this.ProcessHandle = null;
+                ProcessHandle.Dispose();
+                ProcessHandle = null;
             }
 
-            if (this.ThreadHandle != null)
+            if (ThreadHandle != null)
             {
-                this.ThreadHandle.Dispose();
-                this.ThreadHandle = null;
+                ThreadHandle.Dispose();
+                ThreadHandle = null;
             }
         }
     }

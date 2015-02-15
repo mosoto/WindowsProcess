@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.IO.Pipes;
@@ -7,6 +8,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using WindowsProcess.Utilities;
 using Microsoft.Win32.SafeHandles;
 
 namespace WindowsProcess
@@ -27,6 +29,7 @@ namespace WindowsProcess
 
             WindowsProcess process = null;
             GCHandle environmentHandle = new GCHandle();
+            IntPtr password = IntPtr.Zero;
 
             try
             {
@@ -35,7 +38,8 @@ namespace WindowsProcess
 
                 // CREATION FLAGS
                 ProcesCreationFlags creationFlags = ProcesCreationFlags.CREATE_SUSPENDED;
-
+                if (startInfo.CreateNoWindow)
+                    creationFlags |= ProcesCreationFlags.CREATE_NO_WINDOW;
 
                 // ENVIRONMENT
                 IntPtr environmentPtr = IntPtr.Zero;
@@ -75,23 +79,68 @@ namespace WindowsProcess
                     // Set a flag to indicate that we are passing the child standard handles.
                     startupInfo.dwFlags |= StartInfoFlags.STARTF_USESTDHANDLES;
 
+
                 // START PROCESS
                 PROCESS_INFORMATION processInfo;
-                bool retValue = NativeMethods.CreateProcess(
-                    null, // we don't need this since all the info is in commandLine 
-                    commandLine, // pointer to the command line string
-                    null, // pointer to process security attributes 
-                    null, // pointer to thread security attributes 
-                    true, // handle inheritance flag
-                    creationFlags, // creation flags 
-                    environmentPtr, // pointer to new environment block
-                    workingDirectory, // pointer to current directory name
-                    startupInfo, // pointer to STARTUPINFO
-                    out processInfo // pointer to PROCESS_INFORMATION 
-                    );
+                bool retValue = false;
+                if (startInfo.Credential != null)
+                {
+                    string userName = startInfo.Credential.UserName;
+
+                    password = startInfo.Credential.SecurePassword == null
+                        ? Marshal.StringToCoTaskMemUni(string.Empty)
+                        : Marshal.SecureStringToCoTaskMemUnicode(startInfo.Credential.SecurePassword);
+
+                    string domain = startInfo.Credential.Domain;
+
+                    LogonFlags logonFlags = LogonFlags.NONE;
+                    if (startInfo.LoadUserProfile)
+                    {
+                        logonFlags |= LogonFlags.LOGON_WITH_PROFILE;
+                    }
+
+                    retValue = NativeMethods.CreateProcessWithLogonW(
+                        userName,
+                        domain,
+                        password,
+                        logonFlags,
+                        null,
+                        commandLine,
+                        creationFlags,
+                        environmentPtr,
+                        workingDirectory,
+                        startupInfo,
+                        out processInfo
+                        );
+                }
+                else
+                {
+                    retValue = NativeMethods.CreateProcess(
+                        null, // we don't need this since all the info is in commandLine 
+                        commandLine, // pointer to the command line string
+                        null, // pointer to process security attributes 
+                        null, // pointer to thread security attributes 
+                        true, // handle inheritance flag
+                        creationFlags, // creation flags 
+                        environmentPtr, // pointer to new environment block
+                        workingDirectory, // pointer to current directory name
+                        startupInfo, // pointer to STARTUPINFO
+                        out processInfo // pointer to PROCESS_INFORMATION 
+                        );
+                }
+
                 if (!retValue)
                 {
                     throw new Win32Exception();
+                }
+
+                if (processInfo.hProcess == IntPtr.Zero
+                    || processInfo.hProcess == NativeMethods.INVALID_HANDLE_VALUE
+                    || processInfo.hThread == IntPtr.Zero
+                    || processInfo.hThread == NativeMethods.INVALID_HANDLE_VALUE)
+                {
+                    var errorCode = Marshal.GetLastWin32Error();
+                    throw new Win32Exception(errorCode);
                 }
 
                 ioHandles.Start();
@@ -106,6 +155,11 @@ namespace WindowsProcess
                 if (environmentHandle.IsAllocated)
                 {
                     environmentHandle.Free();
+                }
+
+                if (password != IntPtr.Zero)
+                {
+                    Marshal.ZeroFreeCoTaskMemUnicode(password);
                 }
             }
 

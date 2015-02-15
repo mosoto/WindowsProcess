@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
+using System.Net;
+using System.Security;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -14,10 +17,8 @@ namespace WindowsProcess
         public IWindowsProcessIO IO { get; set; }
         public bool AutoStart { get; set; }
         public IDictionary<string, string> Environment { get; set; }
-        
-        
-        //public bool LoadUserProfile { get; set; }
-        //public string UserName { get;set; }
-        //public SecureString Password { get;set; }
+        public NetworkCredential Credential { get; set; }
+        public bool LoadUserProfile { get; set; }
+        public bool CreateNoWindow { get; set; }
     }
 }

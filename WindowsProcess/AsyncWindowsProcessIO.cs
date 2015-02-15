@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
+using WindowsProcess.Utilities;
 
 // ReSharper disable InconsistentNaming
 
@@ -12,14 +10,21 @@ namespace WindowsProcess
     public class AsyncWindowsProcessIO : IWindowsProcessIO
     {
         private readonly IStreamingWindowsProcessIO _streamIO;
-        private readonly ManualResetEvent _allOutputReceived = new ManualResetEvent(false);
-        private readonly ManualResetEvent _allErrorReceived = new ManualResetEvent(false);
+        private readonly IAsyncLineReader _outputReader;
+        private readonly IAsyncLineReader _errorReader;
 
-        private bool _started = false;
 
         public AsyncWindowsProcessIO(IStreamingWindowsProcessIO streamingIO)
         {
             _streamIO = streamingIO;
+
+            _outputReader = _streamIO.Output == null 
+                ? (IAsyncLineReader) new NullAsyncLineReader() 
+                : new AsyncLineReader(_streamIO.Output);
+
+            _errorReader = _streamIO.Error == null
+                ? (IAsyncLineReader)new NullAsyncLineReader()
+                : new AsyncLineReader(_streamIO.Error);
         }
 
         public AsyncWindowsProcessIO(bool redirectInput, bool redirectOutput, bool redirectError)
@@ -29,16 +34,26 @@ namespace WindowsProcess
 
         public bool WaitForAllOutput(int milliseconds)
         {
-            return _allOutputReceived.WaitOne(milliseconds);
+            return _outputReader.WaitForAllOutput(milliseconds);
         }
 
         public bool WaitForAllError(int milliseconds)
         {
-            return _allErrorReceived.WaitOne(milliseconds);
+            return _errorReader.WaitForAllOutput(milliseconds);
         }
 
-        public event EventHandler<LineReceivedEventArgs> OutputDataReceived;
-        public event EventHandler<LineReceivedEventArgs> ErrorDataReceived;
+        public event EventHandler<LineReceivedEventArgs> OutputDataReceived
+        {
+            add { _outputReader.OutputLineReceived += value; }
+            remove { _outputReader.OutputLineReceived -= value; }
+        }
+
+        public event EventHandler<LineReceivedEventArgs> ErrorDataReceived
+        {
+            add { _errorReader.OutputLineReceived += value; }
+            remove { _errorReader.OutputLineReceived -= value; }
+        }
+
         public StreamWriter Input
         {
             get { return _streamIO.Input; }
@@ -61,83 +76,33 @@ namespace WindowsProcess
 
         public void Start()
         {
-            if (!_started)
-            {
-                _streamIO.Start();
-                StartListeningForOutputLine();
-                StartListeningForErrorLine();
-                _started = true;
-            }
+            _streamIO.Start();
+            _outputReader.Start();
+            _errorReader.Start();
         }
 
         public void Dispose()
         {
             _streamIO.Dispose();
+            _outputReader.Dispose();
+            _errorReader.Dispose();
         }
 
-        private void StartListeningForOutputLine()
+        private class NullAsyncLineReader : IAsyncLineReader
         {
-            _streamIO.Output.ReadLineAsync().ContinueWith(t => OnOutputLineReceived(t.Result));
-        }
+            public event EventHandler<LineReceivedEventArgs> OutputLineReceived;
 
-        private void OnOutputLineReceived(string line)
-        {
-            if (line != null)
+            public void Start()
             {
-                OnLineReceived(OutputDataReceived, line);
-                // By starting to listen for the next line only after publishing the current line
-                // we guarantee that subscribers are receiving the lines in order.
-                // It does, however, introduce additional latency in the publishing of lines.
-                StartListeningForOutputLine();
             }
-            else
+
+            public bool WaitForAllOutput(int milliseconds)
             {
-                _allOutputReceived.Set();
+                return true;
             }
-        }
 
-        private void StartListeningForErrorLine()
-        {
-            _streamIO.Error.ReadLineAsync().ContinueWith(t => OnErrorLineReceived(t.Result));
-        }
-
-        private void OnErrorLineReceived(string line)
-        {
-            if (line != null)
+            public void Dispose()
             {
-                OnLineReceived(ErrorDataReceived, line);
-                // By starting to listen for the next line only after publishing the current line
-                // we guarantee that subscribers are receiving the lines in order.
-                // It does, however, introduce additional latency in the publishing of lines.
-                StartListeningForErrorLine();
-            }
-            else
-            {
-                _allErrorReceived.Set();
-            }
-        }
-
-        private void OnLineReceived(EventHandler<LineReceivedEventArgs> handler, string line)
-        {
-            if (handler != null)
-            {
-                var args = new LineReceivedEventArgs(line);
-                var delegateList = handler.GetInvocationList();
-
-                foreach (Delegate del in delegateList)
-                {
-                    try
-                    {
-                        del.DynamicInvoke(this, args);
-                    }
-                    catch
-                    {
-                        // There is no good action to take here.
-                        // If we throw, it just bubbles up to the task reading lines.
-                        // The only way to inform the user of the instance is to save it and rethrow
-                        // whenever they call some method on the instance.
-                    }
-                }
             }
         }
 

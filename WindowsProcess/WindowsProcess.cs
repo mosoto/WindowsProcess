@@ -1,12 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using WindowsProcess.Utilities;
 
 // ReSharper disable InconsistentNaming
 
@@ -84,6 +79,7 @@ namespace WindowsProcess
             StartWatchingForExit();
         }
 
+        // TODO: Waiting an infinite time for exit on a process with redirected input is a recipe for deadlock.  Can we do something to warn the user?
         public bool WaitForExit(int milliseconds = Timeout.Infinite)
         {
             ThrowIfDisposed();

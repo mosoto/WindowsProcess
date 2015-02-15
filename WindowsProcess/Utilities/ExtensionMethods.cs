@@ -2,13 +2,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
+using System.Net;
 using Microsoft.Win32.SafeHandles;
 
-namespace WindowsProcess
+namespace WindowsProcess.Utilities
 {
     public static class ExtensionMethods
     {
@@ -61,6 +58,43 @@ namespace WindowsProcess
 
             return typedDictionary;
         }
+
+        public static SafeUserTokenHandle LogonAndGetUserPrimaryToken(this NetworkCredential credential)
+        {
+            SafeUserTokenHandle userTokenHandle;
+
+            if (!NativeMethods.RevertToSelf())
+            {
+                throw new Win32Exception();
+            }
+
+            IntPtr token = IntPtr.Zero;
+            try
+            {
+                if (!NativeMethods.LogonUser(
+                    credential.UserName,
+                    credential.Domain,
+                    credential.Password,
+                    LogonType.LOGON32_LOGON_INTERACTIVE,
+                    LogonProvider.LOGON32_PROVIDER_DEFAULT,
+                    out token))
+                {
+                    throw new Win32Exception();
+                }
+
+                userTokenHandle = new SafeUserTokenHandle(token.DuplicateHandle());
+            }
+            finally
+            {
+                if (token != IntPtr.Zero)
+                {
+                    NativeMethods.CloseHandle(token);
+                }
+            }
+
+            return userTokenHandle;
+        }
+
 
     }
 }

@@ -245,5 +245,29 @@ namespace WindowsProcess.Tests
             processIo.Start();
         }
 
+        [Fact]
+        public void WhenAllStreamsNull_NoEvents()
+        {
+            var processIo = new AsyncWindowsProcessIO(false, false, false);
+
+            ManualResetEvent dataReceived = new ManualResetEvent(false);
+
+            processIo.OutputDataReceived += (o, e) =>
+            {
+                dataReceived.Set();
+            };
+
+            processIo.ErrorDataReceived += (o, e) =>
+            {
+                dataReceived.Set();
+            };
+
+            processIo.Start();
+            
+            Assert.Null(processIo.Input);
+            bool readData = dataReceived.WaitOne(100);
+            Assert.False(readData);
+        }
+
     }
 }

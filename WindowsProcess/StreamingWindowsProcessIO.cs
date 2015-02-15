@@ -49,7 +49,6 @@ namespace WindowsProcess
         {
             get
             {
-                ThrowIfNull(_inputWriter);
                 return _inputWriter;
             }
         }
@@ -58,7 +57,6 @@ namespace WindowsProcess
         {
             get
             {
-                ThrowIfNull(_outputReader);
                 return _outputReader;
             }
         }
@@ -67,7 +65,6 @@ namespace WindowsProcess
         {
             get
             {
-                ThrowIfNull(_errorReader);
                 return _errorReader;
             }
         }
